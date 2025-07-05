@@ -5,3 +5,4 @@ This can be seen as a 'MVP of MVP', and is extremely important for the progress.
 - Knowing how to debug the training process is important
 - Learn how to use PyTorch as soon as possible
 
+Information funnel: did almost all information is lost because of a limited set of words?

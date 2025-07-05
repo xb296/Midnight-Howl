@@ -6,9 +6,9 @@ import math
 pygame.init()
 
 # Constants
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-BOUNDARY_RADIUS = 250
+SCREEN_WIDTH = 1800
+SCREEN_HEIGHT = 1600
+INITIAL_BOUNDARY_RADIUS = 150
 BOUNDARY_CENTER = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
 NUM_PARTICLES = 70  # Reduced for better performance with interactions
 PARTICLE_RADIUS = 4
@@ -17,8 +17,12 @@ FPS = 60
 # Force constants
 ATTRACTION_STRENGTH = 50000  # Strength of attractive force
 REPULSION_STRENGTH = 100000  # Strength of repulsive force
-REPULSION_DISTANCE = 50      # Distance below which particles repel
+REPULSION_DISTANCE = 10      # Distance below which particles repel
 MAX_FORCE = 1000             # Maximum force to prevent explosive behavior
+
+# Expansion constants
+EXPANSION_RATE = 130          # Rate at which universe expands (pixels per second)
+HUBBLE_CONSTANT = 0.01        # Hubble constant: recession velocity per unit distance (reduced for stability)
 
 # Colors
 BLACK = (0, 0, 0)
@@ -39,6 +43,26 @@ class Particle:
         self.radius = PARTICLE_RADIUS
         self.mass = 1.0  # Mass for force calculations
         
+    def apply_expansion(self, dt):
+        # Calculate expansion velocity (Hubble flow)
+        # Recession velocity = Hubble constant * distance from center
+        center_x, center_y = BOUNDARY_CENTER
+        distance_from_center_x = self.x - center_x
+        distance_from_center_y = self.y - center_y
+        distance_from_center = math.sqrt(distance_from_center_x**2 + distance_from_center_y**2)
+        
+        if distance_from_center > 0:
+            # Normalized direction from center
+            norm_dx = distance_from_center_x / distance_from_center
+            norm_dy = distance_from_center_y / distance_from_center
+            
+            # Hubble velocity: v = H * d (recession velocity proportional to distance)
+            hubble_velocity = HUBBLE_CONSTANT * distance_from_center
+            
+            # Add Hubble velocity to particle velocity
+            self.vx += hubble_velocity * norm_dx * dt
+            self.vy += hubble_velocity * norm_dy * dt
+        
     def apply_force(self, fx, fy, dt):
         # Apply force using F = ma (acceleration = force / mass)
         ax = fx / self.mass
@@ -55,8 +79,8 @@ class Particle:
             self.vx = (self.vx / speed) * max_speed
             self.vy = (self.vy / speed) * max_speed
         
-    def update(self, dt):
-        # Update position
+    def update(self, dt, current_boundary_radius):
+        # Update position based on velocity
         self.x += self.vx * dt
         self.y += self.vy * dt
         
@@ -67,15 +91,15 @@ class Particle:
         distance = math.sqrt(dx * dx + dy * dy)
         
         # If particle hits boundary, bounce it back
-        if distance + self.radius > BOUNDARY_RADIUS:
+        if distance + self.radius > current_boundary_radius:
             # Normalize the distance vector
             if distance > 0:
                 dx /= distance
                 dy /= distance
                 
                 # Move particle back inside boundary
-                self.x = center_x + dx * (BOUNDARY_RADIUS - self.radius)
-                self.y = center_y + dy * (BOUNDARY_RADIUS - self.radius)
+                self.x = center_x + dx * (current_boundary_radius - self.radius)
+                self.y = center_y + dy * (current_boundary_radius - self.radius)
                 
                 # Reflect velocity (bounce)
                 # Dot product of velocity and normal vector
@@ -141,10 +165,15 @@ class Particle:
 class ParticleSimulator:
     def __init__(self):
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption("Particle Simulator")
+        pygame.display.set_caption("Expanding Universe Particle Simulator")
         self.clock = pygame.time.Clock()
         self.particles = []
         self.running = True
+        
+        # Universe expansion tracking
+        self.current_boundary_radius = INITIAL_BOUNDARY_RADIUS
+        self.initial_boundary_radius = INITIAL_BOUNDARY_RADIUS
+        self.universe_age = 0.0  # Age of universe in seconds
         
         # Create random particles
         self.create_particles()
@@ -152,17 +181,22 @@ class ParticleSimulator:
     def create_particles(self):
         colors = [BLUE, RED, GREEN, YELLOW, PURPLE]
         
+        # Reset universe expansion
+        self.current_boundary_radius = INITIAL_BOUNDARY_RADIUS
+        self.initial_boundary_radius = INITIAL_BOUNDARY_RADIUS
+        self.universe_age = 0.0
+        
         for _ in range(NUM_PARTICLES):
-            # Generate random position inside the circle
+            # Generate random position inside the initial circle
             angle = random.uniform(0, 2 * math.pi)
-            radius = random.uniform(0, BOUNDARY_RADIUS - PARTICLE_RADIUS - 50)  # Keep away from edges
+            radius = random.uniform(0, INITIAL_BOUNDARY_RADIUS - PARTICLE_RADIUS - 50)  # Keep away from edges
             
             x = BOUNDARY_CENTER[0] + radius * math.cos(angle)
             y = BOUNDARY_CENTER[1] + radius * math.sin(angle)
             
             # Smaller random velocity for more stable interactions
-            vx = random.uniform(-100, 100)
-            vy = random.uniform(-100, 100)
+            vx = random.uniform(-1, 1)  # Reduced initial velocity
+            vy = random.uniform(-1, 1)
             
             # Random color
             color = random.choice(colors)
@@ -183,37 +217,56 @@ class ParticleSimulator:
                     self.running = False
     
     def update(self, dt):
-        # Calculate forces from all other particles
-        total_fx = 0
-        total_fy = 0
+        # Update universe age and expansion
+        self.universe_age += dt
+        self.current_boundary_radius = self.initial_boundary_radius + (EXPANSION_RATE * self.universe_age)
         
+        # Limit expansion to screen size
+        max_radius = min(SCREEN_WIDTH, SCREEN_HEIGHT) // 2 - 20
+        if self.current_boundary_radius > max_radius:
+            self.current_boundary_radius = max_radius
+        
+        # Apply expansion to all particles (adds Hubble flow velocity)
+        for particle in self.particles:
+            particle.apply_expansion(dt)
+        
+        # Calculate forces from all other particles
         for particle in self.particles:
             fx, fy = particle.calculate_force_from_others(self.particles)
             particle.apply_force(fx, fy, dt)
         
         # Update all particles
         for particle in self.particles:
-            particle.update(dt)
+            particle.update(dt, self.current_boundary_radius)
     
     def draw(self):
         # Clear screen
         self.screen.fill(BLACK)
         
-        # Draw boundary circle
-        pygame.draw.circle(self.screen, WHITE, BOUNDARY_CENTER, BOUNDARY_RADIUS, 2)
+        # Draw boundary circle (expanding universe)
+        pygame.draw.circle(self.screen, WHITE, BOUNDARY_CENTER, int(self.current_boundary_radius), 2)
+        
+        # Draw a faded circle showing the original size
+        if self.current_boundary_radius > self.initial_boundary_radius:
+            pygame.draw.circle(self.screen, (60, 60, 60), BOUNDARY_CENTER, int(self.initial_boundary_radius), 1)
         
         # Draw particles
         for particle in self.particles:
             particle.draw(self.screen)
         
-        # Draw instructions
+        # Draw universe information
         font = pygame.font.Font(None, 24)
         text1 = font.render("SPACE: Reset | ESC: Quit", True, WHITE)
         text2 = font.render(f"Particles: {len(self.particles)}", True, WHITE)
-        text3 = font.render(f"Attract > {REPULSION_DISTANCE}px | Repel < {REPULSION_DISTANCE}px", True, WHITE)
+        text3 = font.render(f"Universe Age: {self.universe_age:.1f}s", True, WHITE)
+        text4 = font.render(f"Universe Radius: {self.current_boundary_radius:.0f}px", True, WHITE)
+        text5 = font.render(f"Expansion Rate: {EXPANSION_RATE}px/s", True, WHITE)
+        
         self.screen.blit(text1, (10, 10))
         self.screen.blit(text2, (10, 35))
         self.screen.blit(text3, (10, 60))
+        self.screen.blit(text4, (10, 85))
+        self.screen.blit(text5, (10, 110))
         
         pygame.display.flip()
     

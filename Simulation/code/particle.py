@@ -6,23 +6,23 @@ import math
 pygame.init()
 
 # Constants
-SCREEN_WIDTH = 1800
-SCREEN_HEIGHT = 1600
+SCREEN_WIDTH = 1200
+SCREEN_HEIGHT = 900
 INITIAL_BOUNDARY_RADIUS = 150
 BOUNDARY_CENTER = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
-NUM_PARTICLES = 70  # Reduced for better performance with interactions
+NUM_PARTICLES = 80  # Reduced for better performance with interactions
 PARTICLE_RADIUS = 4
 FPS = 60
 
 # Force constants
-ATTRACTION_STRENGTH = 50000  # Strength of attractive force
-REPULSION_STRENGTH = 100000  # Strength of repulsive force
-REPULSION_DISTANCE = 10      # Distance below which particles repel
-MAX_FORCE = 1000             # Maximum force to prevent explosive behavior
+ATTRACTION_STRENGTH = 10000  # Reduced from 50000 for gentler interactions
+REPULSION_STRENGTH = 20000   # Reduced from 100000 for gentler interactions
+REPULSION_DISTANCE = 20      # Distance below which particles repel
+MAX_FORCE = 200              # Reduced from 1000 for gentler acceleration
 
 # Expansion constants
-EXPANSION_RATE = 130          # Rate at which universe expands (pixels per second)
-HUBBLE_CONSTANT = 0.01        # Hubble constant: recession velocity per unit distance (reduced for stability)
+EXPANSION_RATE = 60          # Increased expansion rate for more visible effect
+HUBBLE_CONSTANT = 0.05       # Slightly increased Hubble constant
 
 # Colors
 BLACK = (0, 0, 0)
@@ -74,7 +74,7 @@ class Particle:
         
         # Limit velocity to prevent extreme speeds
         speed = math.sqrt(self.vx * self.vx + self.vy * self.vy)
-        max_speed = 400
+        max_speed = 100  # Reduced from 400 for slower movement
         if speed > max_speed:
             self.vx = (self.vx / speed) * max_speed
             self.vy = (self.vy / speed) * max_speed
@@ -194,9 +194,9 @@ class ParticleSimulator:
             x = BOUNDARY_CENTER[0] + radius * math.cos(angle)
             y = BOUNDARY_CENTER[1] + radius * math.sin(angle)
             
-            # Smaller random velocity for more stable interactions
-            vx = random.uniform(-1, 1)  # Reduced initial velocity
-            vy = random.uniform(-1, 1)
+            # Much smaller random velocity for better expansion visibility
+            vx = random.uniform(-20, 20)  # Reduced from -50,50
+            vy = random.uniform(-20, 20)
             
             # Random color
             color = random.choice(colors)

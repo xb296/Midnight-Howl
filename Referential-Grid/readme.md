@@ -42,3 +42,20 @@ aaabbb...
 4. How to transfer from string made up with letters to sentences made up with words
 5. Is structure a intric feature of language, or human mind?
 6. Does neural networks have memory like human mind, to affect generalability?
+
+## Problem
+Here is a problem making the training behaves badly. The key is I have no idea how neural networks generialise agreed protocols and tries to make new agreement. 
+
+Is the neural network deterministic? If it is, then for a given input, it always generates the same output.
+
+For the speaker's trajectory, it is like: 
+target1, str1, (target'1), reward1;
+target2, str2, (target'2), reward2;
+...
+
+For the listener's trajectory, it is like:
+(target1), str1, target1', reward1;
+...
+
+How do NNs update? Speaker's performance depends on listener, while listener's performance depends on speaker. Circular dependancy?
+
